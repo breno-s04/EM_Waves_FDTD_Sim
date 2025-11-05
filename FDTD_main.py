@@ -502,17 +502,42 @@ def run_simulation():
         
         frame_count = 0
         
+        # Determinar escala de cores fixa baseada em uma estimativa
+        # Rodar alguns passos iniciais para estimar o máximo
+        print("Estimando amplitude máxima do campo...")
+        max_field_estimate = 0
+        for step in range(min(50, num_steps)):
+            sim.step(source_func)
+            max_field_estimate = max(max_field_estimate, np.max(np.abs(sim.Ez)))
+        
+        # Usar a estimativa como máximo fixo
+        fixed_vmax = max_field_estimate
+        if fixed_vmax < 1e-10:
+            fixed_vmax = 1.0  # Valor padrão se ainda não houver campo
+        
+        print(f"Escala de cores fixa: ±{fixed_vmax:.2e} V/m")
+        print()
+        
+        # Resetar simulação para começar do zero
+        sim.time_step = 0
+        sim.current_time = 0.0
+        sim.Ez = np.zeros((nx, ny))
+        sim.Hx = np.zeros((nx, ny))
+        sim.Hy = np.zeros((nx, ny))
+        sim.energy_history = []
+        sim.time_history = []
+        
+        # Atualizar escala do imshow com valores fixos
+        im1.set_clim(vmin=-fixed_vmax, vmax=fixed_vmax)
+        
         # Loop de simulação sem animação
         for step in range(num_steps):
             sim.step(source_func)
             
             # Salvar frame a cada N passos
             if step % save_every == 0:
-                # Atualizar apenas os dados (não recriar tudo)
-                max_field = np.max(np.abs(sim.Ez))
-                if max_field > 1e-10:
-                    im1.set_data(sim.Ez.T)
-                    im1.set_clim(vmin=-max_field*0.8, vmax=max_field*0.8)
+                # Atualizar apenas os dados (escala fixa, não muda)
+                im1.set_data(sim.Ez.T)
                 
                 # Atualizar texto
                 time_text.set_text(f'Passo: {sim.time_step}\nTempo: {sim.current_time*1e15:.2f} fs')
